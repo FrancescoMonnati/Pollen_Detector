@@ -9,20 +9,7 @@ import numpy as np
 from datetime import datetime
 from pycocotools import mask as maskUtils
 import cv2
-from PIL import Image
 
-
-
-def from_tiff_to_jpeg(file_path,output_path):
-  """Convert .tiff image to .jpg"""
-  try: 
-        with Image.open(file_path) as img:
-            img = img.convert("RGB")
-            img.save(output_path, format="JPEG", quality=100)
-            return True
-  except Exception as e:
-      print(f"Error occured while converting {file_path} {e}")
-      return False
 
 
 def create_coco_annotation(detections, image_id, image_shape, category_id, annotation_id_start=1, method = "RLE"):    
@@ -227,13 +214,12 @@ def mask_to_yolo_segmentation(mask, image_width, image_height):
     if not contours:
         return []
     
-    # Use the largest contour
     largest_contour = max(contours, key=cv2.contourArea)
     
     if len(largest_contour) < 3:
         return []
     
-    # Flatten and normalize coordinates
+    
     polygon = largest_contour.flatten()
     normalized_polygon = []
     
@@ -256,10 +242,9 @@ def coco_polygon_to_yolo(coco_polygon, image_width, image_height):
     Returns:
         List of normalized coordinates for YOLO format
     """
-    # Convert to numpy array and reshape
     polygon = np.array(coco_polygon).reshape(-1, 2)
     
-    # Normalize coordinates
+
     normalized_polygon = []
     for x, y in polygon:
         norm_x = x / image_width
@@ -282,12 +267,10 @@ def yolo_to_coco_polygon(yolo_coords, image_width, image_height):
     """
     coco_polygon = []
     
-    # Process coordinates in pairs
     for i in range(0, len(yolo_coords), 2):
         norm_x = yolo_coords[i]
         norm_y = yolo_coords[i + 1]
         
-        # Convert to absolute coordinates
         abs_x = norm_x * image_width
         abs_y = norm_y * image_height
         
@@ -307,15 +290,12 @@ def coco_rle_to_yolo(rle_annotation, image_width, image_height):
     Returns:
         List of normalized polygon coordinates
     """
-    # Decode RLE to binary mask
-    if isinstance(rle_annotation, list):
-        # Polygon format - convert first polygon
+    if isinstance(rle_annotation, list):       
         return coco_polygon_to_yolo(rle_annotation[0], image_width, image_height)
     else:
-        # RLE format
+    
         mask = maskUtils.decode(rle_annotation)
-        
-        # Find contours
+
         contours, _ = cv2.findContours(
             mask.astype(np.uint8), 
             cv2.RETR_EXTERNAL, 
@@ -324,14 +304,9 @@ def coco_rle_to_yolo(rle_annotation, image_width, image_height):
         
         if len(contours) == 0:
             return []
-        
-        # Use largest contour
+
         largest_contour = max(contours, key=cv2.contourArea)
-        
-        # Convert contour to polygon
         polygon = largest_contour.flatten()
-        
-        # Normalize coordinates
         normalized_coords = []
         for i in range(0, len(polygon), 2):
             norm_x = polygon[i] / image_width
@@ -357,16 +332,14 @@ def create_yolo_annotation(detections, image_width, image_height, category_id):
     """
     yolo_annotations = []
     
-    for i, (xyxy, mask, confidence, class_id, _) in enumerate(detections):
-        # Convert category_id to 0-indexed for YOLO
-        yolo_class_id = category_id - 1
+    for i, (xyxy, mask, confidence, class_id, _) in enumerate(detections):      
+        yolo_class_id = category_id - 1  # Convert category_id to 0-indexed for YOLO
         
-        # Get normalized polygon coordinates
+
         segmentation_coords = mask_to_yolo_segmentation(mask, image_width, image_height)
         
         if len(segmentation_coords) >= 6:  # Need at least 3 points (6 coordinates)
-            # Format: class_id x1 y1 x2 y2 x3 y3 ...
-            coords_str = ' '.join([f"{coord:.6f}" for coord in segmentation_coords])
+            coords_str = ' '.join([f"{coord:.6f}" for coord in segmentation_coords]) # Format: class_id x1 y1 x2 y2 x3 y3...
             yolo_line = f"{yolo_class_id} {coords_str}"
             yolo_annotations.append(yolo_line)
     
